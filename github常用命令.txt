@@ -76,6 +76,22 @@ $git rm test.txt   删除版本库中的文件  记得删除后，再使用 git 
  
 
 
+#####远程仓库
+关联的命令为： $ git remote add origin https://github.com/casualplayFlask/test1.git   其中casualplayFlask是我的github账号，test1是我的仓库名，一定要在本地需要
+同步的文件夹内，再运行这样关联代码。
+
+把本地库的内容推送到远程，用git push命令，实际上是把当前分支master推送到远程。
+由于远程库是空的，我们第一次推送master分支时，加上了-u参数，Git不但会把本地的master分支内容推送的远程新的master分支，
+还会把本地的master分支和远程的master分支关联起来，在以后的推送或者拉取时就可以简化命令。
+第一次推送的命令为：git push -u origin master
+
+如果发生问题，在绑定关联的时候显示已经存在，则需要先输入命令  $ git remote remove origin  接触关联，再重新绑定就行了
+小结
+要关联一个远程库，使用命令git remote add origin git@server-name:path/repo-name.git；
+关联后，使用命令git push -u origin master第一次推送master分支的所有内容；
+此后，每次本地提交后，只要有必要，就可以使用命令git push origin master推送最新修改；
+分布式版本系统的最大好处之一是在本地工作完全不需要考虑远程库的存在，也就是有没有联网都可以正常工作，
+而SVN在没有联网的时候是拒绝干活的！当有网络的时候，再把本地提交推送一下就完成了同步，真是太方便了！
 
 
 
