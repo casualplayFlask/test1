@@ -1,0 +1,11 @@
+1，安装pipenv的pip包地址:   https://pypi.org   是一个python包的在线仓库下载之后 cmd命令运行  pip install pipenv
+2，创建虚拟环境：在需要执行虚拟环境的文件夹中（这里是桌面的helloflask文件夹）执行命令，pipenv install
+3，显示地激活虚拟环境：在helloflask文件夹中，执行命令，pipenv shell   之后会发现命令行提示符前添加了虚拟环境名，这说明已经激活成功，接下去的所有命令
+都会在虚拟环境中执行，当你需要退出虚拟环境时，使用exit命令。
+4，除了显示的激活虚拟环境，Pipevn还提供了一个Pipenv run的命令，这个命令运行不显示的激活虚拟环境即可在当前项目的虚拟环境中执行命令，比如：
+		$pipenv run python hello.py 这回使用虚拟环境中的python解释器，而不是全局的Python解释器，这个命令比显示激活要好，因为这个命令
+    可以在操作时不用关心自己是否激活了虚拟环境。
+
+5，在helloflask文件夹内，运行命令: pipenv install flask  则可以安装flask包到虚拟环境中
+6，运行pipenv update flask可以升级，确保自己的flask是最新版本的
+7，https://www.jetbrains.com/pycharm/download/    pycharm下载地址
