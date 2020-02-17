@@ -1,0 +1,57 @@
+我的Github账号:casualplayFlask
+密码：zdx56411923
+email: 452212730@qq.com
+
+repository name(仓库名称) : zdxcangku1
+
+https://www.liaoxuefeng.com/wiki/896043488029600/896827951938304   github使用方法教程
+
+
+代码均托管地址 ： https://github.com
+
+git简明教程：http://rogerdudler.github.io/git-guide/index.zh.html
+
+git官网下载页面：https://git-scm.com/dowmnloads
+
+其他大量的第三方客户端地址：https://git-scm.com/downloads/guis
+
+
+
+$git clone https://github.com/greyli/helloflask.git 或者 $ clone git://github.com/greyli/helloflask.git  获取helloflask文件夹（会在当前目录出现，clone后面是URL）
+
+$git tag-n  查看项目仓库中包含的标签
+
+$git checkout foo 命令即可签出对应标签版本的代码，添加标签名作为参数
+
+$git reset--hard 在后面，书中会在每一次包含更改文件的章节提示应该签出的标签名。如果在执行新的签出命令之前，你对文件做了修改，那么需要使用gitreset命令来撤销改动
+ps:git reset命令会删除本地修改
+
+$git diff foo bar 这个命令可以更直观地查看版本变化
+
+$gitk 可以使用该命令打开内置的Git浏览器客户端
+
+另外，可以访问github的web页面查看不同版本（标签）的变化，即查看某项目两个版本之间的变化可以访问
+https://github.com/用户名/仓库名/compare/标签A...标签B
+比如对foo和bar标签进行比较可以访问：https:github.com/greyli/helloflask/compare/foo...bar
+
+最后，可以定期使用git fetch命令来更新本地仓库：
+$git fetch --all
+$git fetch --tags
+$git reset --hard origin/master
+
+
+
+#####远程仓库
+关联的命令为： $ git remote add origin https://github.com/casualplayFlask/test1.git   其中casualplayFlask是我的github账号，test1是我的仓库名，一定要在本地需要
+同步的文件夹内，再运行这样关联代码。
+
+把本地库的内容推送到远程，用git push命令，实际上是把当前分支master推送到远程。
+由于远程库是空的，我们第一次推送master分支时，加上了-u参数，Git不但会把本地的master分支内容推送的远程新的master分支，
+还会把本地的master分支和远程的master分支关联起来，在以后的推送或者拉取时就可以简化命令。
+第一次推送的命令为：git push -u origin master
+
+如果发生问题，在绑定关联的时候显示已经存在，则需要先输入命令  $ git remote remove origin  接触关联，再重新绑定就行了
+
+
+
+
