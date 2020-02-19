@@ -1,0 +1,285 @@
+1，一个试图函数可以绑定多个URL，当访问这两个URL均会出发say_hello()函数，获得相同的相应。
+比如： 
+@app.route('/hi')
+@app.route('/hello')
+def say_hello():
+      return '<h1>Hello,Flask!</h1>'
+
+2，视图函数可以绑定动态URL，也就是在Flask处理请求时会把变量传入视图函数，所以我们可以添加参数获取这个变量值。
+比如：
+@app.router('/greet/<name>')
+def greet(name):
+      return '<h1>Hello, %s!</h1>' % name
+Flask会解析请求并把请求的URL与视图函数的URL规则进行匹配，比如这个greet视图的URL规则为/greet/<name>,
+那么类似 /greet/foo、/greet/bar的请求都会出发这个视图函数
+
+
+3，如果URL规则中包含变量，但是用户访问的URL中没有添加变量，那么Flask匹配失败后会返回一个404的错误响应，为了避免这种情况发生，
+一般会在app.route()装饰器里使用defaults参数设置URL变量的默认值，这个参数接受字典作为输入，储存URL变量和默认值的映射。
+其实相当于在用户没有输入变量的时候，则会自己使用默认值来避免错误发生。
+比如：
+@app.route('/greet',defaults={'name' : 'Programmer'})
+@app.route('/greet/<name>')
+def greet(name):
+      return '<h1>Hello,%s!</h1>'% name
+
+上面的用法实际效果等同于：
+@app.route('/greet')
+@app.route('/greet/<name>')
+def greet(name='Programmer'):
+      return '<h1>Hello,%s!</h1>'% name
+
+4,flask run命令用来启动内置的开发服务器。
+
+5，在执行flask run命令运行程序之前，如果程序主模块是其他名称，比如hello.py，那么需要设置环境变量FLASK_APP，将包含程序实例的模块名称赋值给这个变量。
+windows系统中使用set命令：
+>set FLASK_APP=hello
+
+6，pipenv run flask run --host=0.0.0.0  这样启动会让服务器监听所有外部请求，因为个人计算机一般没有公网ip，所有程序只能被
+局域网内的其他用户通过你 的个人计算机内网ip访问，比如我的内网ip为192.168.191.1，当局域网内的其他用户访问http://192.168.191.1:5000时
+也会看到浏览器里显示一行 Hello Flask。
+
+7，出现 >>> 符号，表示这些代码需要在使用flask shell命令打开的python shell中执行，python shell可执行exit()或quit()退出，在windows系统上可以使用
+ctrl + Z 并按Enter退出。
+使用flask shell命令打开的Python shell自动包含程序上下文，并且已经导入了app实例。
+
+8，app.config['ADMIN_NAME']='Peter'   Flask提供了很多种方式来加载配置，比如，你可以想在字典中添加一个键值对一样来设置一个配置，如左边显示。
+ PS:配置的名称必须是全大写形式，小写的变量将不会被读取。
+使用update()方法则可以一次加载多个值：
+app.config.update(TESTING=True,SECRET_KEY='_s#yF4Q8z\n\xec]/')
+读取一个配置，就是从config字典里通过将配置变量的名称作为键读取对应的值：
+value=app.config['ADMIN_NAME']
+
+9,url_for()函数，第一个参数为端点值，在flask中，端点用来标记一个视图函数以及对应的URL规则。端点的默认值为视图函数的名称
+比如，下面的视图函数：
+@app.route('/')
+def index():
+      return 'Hello Flask!'  
+这个路由的端点即视图函数的名称，Index，调用url_for('index')即可获取对应的URL,即"/"
+
+
+10，如果URL含有动态部分，那么我们需要在url_for()函数里传入相应的参数，如下：
+@app.route('/hello/<name>')
+def greet(name):
+       return 'Hello %s!' % name
+这时，使用url_for('greet',name='Jack')得到的URL为"/hello/Jack"
+
+
+
+11,自定义一个flask命令。  通过创建任意一个函数，并为其添加app.cli.command()装饰器，就可以注册一个flask命令。如下：
+@app.cli.command()
+def hello():
+      """Just say hello."""
+      click.echo('Hello,Human!')
+函数名称即为命令名称，这里注册的命令即hello，可以使用flask hello命令来出发函数。作为替代，也可以在app.cli.command()装饰器中传入参数来设置命令名称。
+比如：app.cli.command('say-hello')，此时会把命令名称设置为say-hello，完整的命令即 flask say-hello
+
+
+12,pipenv run flask --help  该命令可以查看Flask提供的命令帮助文档，文档中的Commands(命令）下的内容就是flask目前可执行的命令（包括自定义命令也会存在）
+
+13，flask的模板文件存放在 templates文件夹中，静态文件存放在static文件夹中，这两个文件夹需要和包含程序实例的模块处于同一个目录下，目录结构如下：
+hello/
+       - templates/
+       - static/
+       - app.py
+
+14，request的对象类型为字典属性，所以获取的方法就如同字典一样，但是如果用
+request.args['name']来操作，如果没有对应的键，则会返回http 400错误相应，而不是抛出异常。为了避免这种情况发生所以我们应该使用
+request.args.get('name','Human') 第二个参数可以设置成默认值，也可以不设置，此处默认值设置成了Human
+
+
+
+15,如果返回404错误响应（Not Found，表示资源未找到，也就是说明程序中没有处理这个URL的视图函数）
+
+16，flask routes命令可以查看程序中定义的所有路由。。比如：  hello  GET   /hello  这三个分别代表:端点，HTTP方法(methods)，URL规则(Rule)
+其中 static端点是flask添加的特殊路由，用来访问静态文件的。
+其中一个端点goback，对应的URL规则四 /goback/<int:year>  此处为year变量添加了一个int转换器，Flask在解析这个URL变量时会将其转换为整型。
+URL中的变量部分默认类型为字符串，但Flask提供了一些转换器可以在URL规则里使用，如下：
+string   不包含斜线的字符串（默认值）
+int        整型
+float     浮点数
+path     包含斜线的字符串，static路由的URL规则中的filename变量就是用了这个转换器
+any      匹配一系列给定值中的一个元素
+uuid     UUID字符串
+
+
+
+17，钩子函数，也叫请求钩子，比如：before_request（请求之前），当你对一个函数附加了app.before_request装饰器后，这个函数注册为
+before_request处理函数，每次执行请求前都会出发所有的before_request处理函数，flask有5中钩子函数，如下：
+before_first_request         注册一个函数，在处理第一个请求前运行
+before_request                注册一个函数，在处理每个请求前运行
+after_request                   注册一个函数，如果没有未处理的异常抛出，会在每个请求结束后运行
+teardown_request           注册一个函数，即使有未处理的异常抛出，会在每个请求结束后运行。如果发生异常，会传入异常对象作为参数到注册的函数中
+after_this_request            在视图函数内注册一个函数，会在这个请求结束后运行            
+示例如下：
+@app.before_request
+def do_something():
+      pass  #这里的代码会在每个请求处理前执行
+
+钩子函数一些常见应用场景如下：
+1，before_first_request:玩具程序中，运行程序前我们需要进行一些程序的初始化操作，比如创建数据库表，添加管理员用户。
+2，before_request：比如网站上要记录用户最后的在线时间，可以通过用户最后发送的请求时间来实现。
+3，我们经常在视图函数中进行数据库的操作，之后需要将更改的提交到数据库中，提交更改的代码就可以放到after_request钩子注册的函数中。
+另一种常见的应用时建立数据库连接，通常会有多个视图函数需要建立和关闭数据库连接，这些操作基本相同，一个理想的解决方法时在请求之前
+（before_request）建立连接，在请求之后(teardown_request)关闭连接。通过在使用相应的请求钩子注册的函数中添加代码就可以实现。
+注意：after_request钩子和after_this_request钩子必须接受一个响应类对象作为参数，并且返回同一个或更新后的响应对象。
+
+18，HTTP响应：
+成功：200     ok                       请求被正常处理
+成功：201     Created               请求被处理，并创建了一个新资源
+成功：204     No Content         请求处理成功，但无内容返回
+重定向：301  Moved Permanently    永久重定向
+重定向：302  Found                         临时性重定向
+重定向：304  Not Modified              请求的资源未被修改，重定向到缓存的资源
+客户端错误：400    Bad Request       表示请求无效，即请求报文中存在的错误
+客户端错误：401    Unauthorized     类似403，表示请求的资源需要获取授权信息，在浏览器中会弹出认证弹窗
+客户端错误：403    Forbidden          表示请求的资源被服务器拒绝访问
+客户端错误：404    Not Found         表示服务器上无法找到请求的资源或URL无效
+服务器端错误：500    Internal Server Error    服务器内部发生错误
+
+
+19，Flask会调用make_response()方法将视图函数的值转换为响应对象。完整的说，视图函数可以返回最多由三个元素组成的元组：响应主体，状态码，首部字段。
+其中首部字段可以为字典，或是两个元素元组组成的列表。
+普通的响应，可以只包含主体内容，如下：
+@app.route('/hello')
+def hello():
+      ...
+      return '<h1>Hello,Flask!</h1>'
+
+默认的状态码为200，下面指定了不同的状态码，如下：
+@app.route('/hello')
+def hello():
+      ...
+      return '<h1>Hello,Flask!</h1>',201
+
+有时候，你会想附加或修改某个首部字段。比如，要生成状态码为3XX的重定向响应，需要将首部中的Location字段设置为重定向的目标URL：
+@app.route('/hello')
+def hello():
+      ...
+      return ''，302，{'Location':'http://www.example.com'}
+
+重定向可以理解为网页跳转。上面的302就是重定向
+关于重定向：redirect()函数时flask提供的生产重定向响应的方法，上面的302例子简化如下：
+from flask import Flask,redirect
+#....
+@app.route('/hello'）
+def hello():
+      return redirect('http://www.example.com')
+其中redirect（）中的第一个传参，是 重定向目标URL，第二个传参，默认是302状态码（临时重定向），如果想改变状态码，直接在第二个传参输入code关键字传入
+redirect()方法中，传入url_for('hello')，则重定向到其他视图函数，如下：
+from flask import Flask,redirect,url_for
+#....
+@app.route('/hi'）
+def hi():
+      ...
+      return redirect(url_for('hello'))  #重定向到/hello  该视图函数
+
+@app.route('/hello')
+def hello():
+      ...
+
+
+20，Flask通过引入Python标准库中的json模块，为程序提供了JSON支持，可以直接从Flask中导入json对象，然后再调用dumps()方法将字典，列表或元组序列化为JSON字符串
+再使用前面介绍的方法修改MIME类型，即可返回JSON响应，如下：
+from flask import Flask,make_response,json
+...
+@app.route('/foo')
+def foo():
+      data = {
+              'name' : 'Grey Li',
+              'gender' : 'male'
+                }
+       response = make_response(json.dumps(data))
+       response.mimetype = 'application/json'
+      return response
+
+一般不用json模块的dumps()，load()等方法，因为Flask通过包装这些方法提供了更方便的jsonify()函数。借助jsonify()函数，只需要传入数据或参数，它会对我们传入的参数
+进行序列化，转换成JSON字符串作为响应的主体，然后生成一个响应对象，并且设置正确的MIME类型。使用jsonify函数可以将上面的例子简化成如下形式：
+from flask import jsonify
+@app.route('/foo')
+def foo():
+      return jsonify(name='Grey Li'，gender='male')
+
+jsonify()函数接收多种形式的参数。既可以传入普通参数，也可以传入关键字参数，可以像下面这样设置，显得更直观：
+from flask import jsonify
+@app.route('/foo')
+def foo():
+      return jsonify({'name'='Grey Li'，'gender'='male'})
+
+上面这两种形式的返回值是相同的，都会生成这样的JSON字符串：'{"gender" : "male","name" : "Grey Li"}'
+且jsonify()函数默认生成200响应，可以通过附加状态码来自定义响应类型，比如：
+@app.route('/foo')
+def foo():
+      return jsonify(message='Error!'),500
+
+
+21，在Flask中，如果想要在响应中添加一个cookie，最方便的方法使用Resonse类提供的set_cookie()方法。要使用这个方法，需要先使用make_response()方法手动生成
+一个响应对象，传入响应主体作为参数。这个响应对象默认实例化内置的Response类，以下是内置的Response类常用的属性和方法：
+headers         一个Werkzeug的Headers对象，表示响应首部，可以像字典一样操作
+status            状态码，文本类型
+status_code   状态码，整型
+mimetype     MIME类型（仅包括内容类型部分）
+set_cookie()   用来设置一个cookie
+
+set_cookie()方法支持多个参数来设置Cookie的选项，如下：
+key              cookie的键（名称）
+value           cookie的值
+max_age     cookie被保存的时间数，单位为秒；默认在用户会话结束（即关闭浏览器）时过期
+expires        具体的过期时间，一个datetime对象或UNIX时间戳
+path           限制cookie只在给定的路径可用，默认为整个域名
+domain       设置cookie可用的域名
+secure         如果设为True，只有通过HTTPS才可以使用
+httponly      如果设为True，禁止客户端JavaScript获取cookie
+
+set_cookie视图函数用来设置cookie，它会将URL中的name变量的值设置到名为name的cookie里，如下：
+from flask import Flask,make_response
+...
+@app.route('/set/<name>')
+def set_cookie(name):
+       response = make_response(redirect(url_for('hello')))
+       response.set_cookie('name',name)  #键名为:第一个参数 name ， 值是对应的变量：name，也就是/set/<name>中的name变量，此处会把它传给hello的name变量
+       return response
+
+22，session是指用户绘画，在flask中，session对象用来加密cookie，它会把数据储存在浏览器上一个名为session的cookie里。
+程序的密钥可以通过Flask.secret_key属性或配置变量SECRET_KEY设置，比如：app.secret_key='secret string'
+更安全的做法是把密钥写进系统环境变量（在命令行中使用export或set命令），或是保存子.env文件中：SECRET_KEY=secret string
+然后再程序脚本中使用os模块提供的getenv()方法获取：
+import os
+#...
+app.secret_key = os.getenv('SECRET_KEY'，'secret string')  ##再getenv()方法中，添加的第二个参数，是作为没有获取到对应的环境变量时使用的默认值（这里是固定占位符
+方便写，以后这里要生成的是随机密钥，具体方法在后面章节中）
+
+23，使用session模拟用户的认证功能，如下：
+from flask import redirect,session,url_for
+@app.router('/login')
+def login():
+      session['logged_in'] = True  #写入session，session对象可以像字典一样操作，此处向session中添加一个logged_in cookie，值为True表示用户已认证。
+      return redirect(url_for('hello'))
+当我们使用session对象添加cookie时，数据会使用程序的密钥对其进行签名，加密后的数据存储在一块名为session的cookie里（浏览器中可以看到）
+
+24，abort()方法是返回错误响应，且前面不用加return，如下：
+@app.route('/admin')
+def admin():
+      if 'logged_in' not in session:
+          abort(403)
+      return 'Welcom to admin page.'
+以上的意思是：通过判断logged_in是否在session中，可以实现：如果用户已经认证，会返回一行提示文字，否则会返回403错误响应。
+
+
+25，登出用户的logout视图函数非常简单，只要把代表用户认证的logged_iin cookie删除，这通过session对象的pop方法实现，如下：
+@app.route('/logout')
+def logout():
+    if 'logged_in' in session:
+        session.pop('logged_in')
+    return redirect(url_for('hello'))
+
+
+
+
+
+
+
+
+
+
+
