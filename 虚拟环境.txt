@@ -9,3 +9,5 @@
 5，在helloflask文件夹内，运行命令: pipenv install flask  则可以安装flask包到虚拟环境中
 6，运行pipenv update flask可以升级，确保自己的flask是最新版本的
 7，https://www.jetbrains.com/pycharm/download/    pycharm下载地址
+8， 在根目录中，下载 pipenv install python-dotenv   用来管理环境变量，安装这个之后，在使用flask run或其他命令时，会使用它自动从 .flaskenv文件和 .env文件中加载环境变量。
+9，在根目录中，下载 pipenv install watchdog--dev ， 安装后werkzeug会自动使用它来检测文件变动，这个包旨在开发时才会用到，所以安装命令后面添加一个--dev

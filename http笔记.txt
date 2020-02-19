@@ -1,0 +1,6 @@
+1，比如网址：http://heloflask.com/hello?name=Grey
+
+http://                         协议字符串，指定要使用的协议
+helloflask.com             服务器的地址（域名）
+/hello?name=Grey      要获取的资源路径（path)，其中 ? name=Grey部分是查询字符串，URL中的查询字符串用来向指定的资源传递参数。
+		  查询字符串从 ？ 开始，以键值对的形式写出，多个键值对之间使用 & 分隔
