@@ -1,0 +1,455 @@
+1，在模板中添加Python语句和表达式时，我们需要使用特定的定界符把它们标示出来。首先，你可以在上面的代码中看到Jinja2里常见的三种定界符：
+1）语句
+比如if判断、for循环等：{% ... %}
+尤其需要注意的是，在语句结束的地方，我们必须添加结束标签，如下：
+{% if user.bio %}
+    <i>{{ user.bio }}</i>
+{% else %}
+    <i>This user has not provided a bio.</i>
+{% endif %}
+在这个If语句里，如果user.bio已经定义，就渲染{%if user.bio%}和{%else%}之间的内容，否则就渲染{%else%}和{%endif%}之间的默认内容。
+末尾的{%endif%}用来声明if语句的结束，这一行不能省略。
+
+和在Python里一样，for语句用来迭代一个序列：
+<ul>
+    {% for movie in movies %}
+    <li>{{ movie.name }} - {{ movie.year }}</li>
+    {% endfor %}
+</ul>
+和其他语句一样，你需要在for循环的结尾使用endfor标签声明for语句的结束。
+完整的for循环变量列表：http://jinja.pocoo.org/docs/2.10/templates/#for
+变量名	   	说明
+loop.index    	当前迭代数（从1开始计数）
+loop.index0	当前迭代数（从0开始计数）
+loop.revindex	当前反向迭代数（从1开始计数）
+loop.revindex0	当前反向迭代数（从0开始计数）
+loop.first		如果是第一个元素，则为True
+loop.last		如果是最后一个元素，则为True
+loop.previtem	上一个迭代的条目
+loop.nextitem	下一个迭代的条目
+loop.length	序列包含的元素数量
+
+
+2）表达式
+比如字符串、变量、函数调用等：{{ ... }}
+
+3）注释
+{# ... #}
+
+另外，在模板中，Jinja2支持使用“.”获取变量的属性，比如user字典中的username键值通过“.”获取，即user.username，在效果上等同于user['username']。
+
+
+
+2，渲染模板
+Flask提供的渲染函数render_template（）
+from flask import Flask, render_template
+...
+@app.route('/watchlist')
+def watchlist():
+    return render_template('watchlist.html', user=user, movies=movies)
+
+在render_template（）函数中，我们首先传入模板的文件名作为参数。
+如第1章项目结构部分所说，Flask会在程序根目录下的templates文件夹里寻找模板文件，所以这里传入的文件路径是相对于templates根目录的。
+除了模板文件路径，我们还以关键字参数的形式传入了模板中使用的变量值，以user为例：左边的user表示传入模板的变量名称，右边的user则是要传入的对象。
+
+**提示　除了render_template（）函数，Flask还提供了一个render_template_string（）函数用来渲染模板字符串。
+
+其他类型的变量通过相同的方式传入。传入Jinja2中的变量值可以是字符串、列表和字典，也可以是函数、类和类实例，这完全取决于你在视图函数传入的值。
+下面是一些示例：
+<p>这是列表my_list的第一个元素：{{ my_list[0] }}</p>
+<p>这是元组my_tuple的第一个元素：{{ my_tuple[0] }}</p>
+<p>这是字典my_dict的键为name的值：{{ my_dict['name'] }}</p>
+<p>这是函数my_func的返回值：{{ my_func() }}</p>
+<p>这是对象my_object调用某方法的返回值：{{ my_object.name() }}</p>
+
+除了渲染时传入变量，你也可以在模板中定义变量，使用set标签：
+{% set navigation = [('/', 'Home'), ('/about', 'About')] %}
+
+也可以将一部分模板数据定义为变量，使用set和endset标签声明开始和结束：
+{% set navigation %}
+    <li><a href="/">Home</a>
+    <li><a href="/about">About</a>
+{% endset %}
+
+3，内置上下文变量
+Flask在模板上下文中提供了一些内置变量，可以在模板中直接使用，如下：
+变量	说明
+config	当前的配置对象
+request	当前的请求对象，在已激活的请求环境下可用
+session	当前的会话对象，在已激活的请求环境下可用
+g	与请求绑定的全局变量，在已激活的请求环境下可用
+
+
+如果多个模板都需要使用同一变量，那么比起在多个视图函数中重复传入，更好的方法是能够设置一个模板全局变量。
+Flask提供了一个app.context_processor装饰器，可以用来注册模板上下文处理函数，它可以帮我们完成统一传入变量的工作。
+模板上下文处理函数需要返回一个包含变量键值对的字典，如下：
+@app.context_processor
+def inject_foo():
+    foo = 'I am foo.'
+    return dict(foo=foo)  # 等同于return {'foo': foo}
+
+当我们调用render_template（）函数渲染任意一个模板时，所有使用app.context_processor装饰器注册的模板上下文处理函数（包括Flask内置的上下文处理函数）都会被执行
+，这些函数的返回值会被添加到模板中，因此我们可以在模板中直接使用foo变量。
+提示　和在render_template（）函数中传入变量类似，除了字符串、列表等数据结构，你也可以传入函数、类或类实例。
+
+除了使用app.context_processor装饰器，也可以直接将其作为方法调用，传入模板上下文处理函数：
+...
+def inject_foo():
+    foo = 'I am foo.'
+    return dict(foo=foo)
+
+app.context_processor(inject_foo)
+
+使用lambda可以简化为：
+app.context_processor(lambda: dict(foo='I am foo.'))
+ps:将lambda函数赋值给一个变量，通过这个变量间接调用该lambda函数。
+示例：
+add = lambda x, y: x+y
+相当于定义了加法函数lambda x, y: x+y，并将其赋值给变量add，这样变量add就指向了具有加法功能的函数。
+这时我们如果执行add(1, 2)，其输出结果就为 3
+
+
+4，全局对象
+全局对象是指在所有的模板中都可以直接使用的对象，包括在模板中导入的模板
+1）内置全局函数
+Jinja2在模板中默认提供了一些全局函数，常用的三个函数如下：
+函数		                    		说明
+range([start,]stop[,step])	    		和python中的range()用法相同
+lipsum(n=5,html=True,min=20,max=100)		生成随机文本（lorem ipsum），可以在测试时用来填充页面。默认生成5段HTML文本，每段包含20~100个单词
+dict(**items)				和python中的dict()用法相同
+
+除了Jinja2内置的全局函数，Flask也在模板中内置了两个全局函数，如下：
+函数			说明
+url_for()			用于生成URL的函数
+get_flashed_messages()	用于获取flash消息的函数
+
+提示　Flask除了把g、session、config、request对象注册为上下文变量，也将它们设为全局变量，因此可以全局使用
+
+url_for（）用来获取URL，用法和在Python脚本中相同。在前面给出的watchlist.html模板中，用来返回主页的链接直接写出。
+在实际的代码中，这个URL使用url_for（）生成，传入index视图的端点：
+<a href="{{ url_for('index') }}">&larr; Return</a>
+
+2）自定义全局函数
+除了使用app.context_processor注册模板上下文处理函数来传入函数，我们也可以使用app.template_global装饰器直接将函数注册为模板全局函数。
+@app.template_global()
+def bar():
+    return 'I am bar.'
+默认使用函数的原名称传入模板，在app.template_global（）装饰器中使用name参数可以指定一个自定义名称。app.template_global（）仅能用于注册全局函数。
+
+5，过滤器（filter）
+在Jinja2中，过滤器（filter）是一些可以用来修改和过滤变量值的特殊函数，过滤器和变量用一个竖线（管道符号）隔开，需要参数的过滤器可以像函数一样使用括号传递。
+下面是一个对name变量使用title过滤器的例子：
+{{ name|title }}
+这会将name变量的值标题化，相当于在Python里调用name.title（）。
+再比如，我们在本章开始的示例模板watchlist.html中使用length获取movies列表的长度，类似于在Python中调用len（movies）：
+{{ movies|length }}
+
+另一种用法是将过滤器作用于一部分模板数据，使用filter标签和endfilter标签声明开始和结束。比如，下面使用upper过滤器将一段文字转换为大写：
+{% filter upper %}
+    This text becomes uppercase.
+{% endfilter %}
+
+1）内置过滤器
+Jinja2提供了许多内置过滤器，常用的过滤器如下：
+过滤器					说明
+default(value,default_value=u",boolean=Flase)	设置默认值，默认值作为参数传入，别名为d
+escape(s)					转义HTML文本，别名为e
+first(seq)					返回序列的第一个元素
+last(seq)					返回序列的最后一个元素
+length(object)				返回变量的长度
+random(seq)				返回序列中的随机元素
+safe(value)				将变量值标记为安全，避免转义
+trim(value)				清楚变量值前后的空格
+max(value,casu_sensitive=False,attribute=None)	返回序列中的最大值
+min(value,casu_sensitive=False,attribute=None)	返回序列中的最小值
+unique(value,casu_sensitive=False,attribute=None)	返回序列中的不重复的值
+striptags(value)				清除变量值内地额HTML标签
+
+urlize(value,trim_url_limit=None,nofollow=False,	将URL文本转换为可单机的HTML连接
+target=None,rel=None)
+			
+wordcount(s)				计算单词数量
+tojson(value,indent=None)			将变量值转换为JSON格式
+
+truncate(s,length=255,killwords=Flase,	                截断字符串，常用于显示文章摘要，length参数设置截断的长度，killwords设置是否截断单词，end设置结尾的符号
+end='...',leeway=None
+
+
+在使用过滤器时，列表中过滤器函数的第一个参数表示被过滤的变量值（value）或字符串（s），即竖线符号左侧的值，其他的参数可以通过添加括号传入。
+另外，过滤器可以叠加使用，下面的示例为name变量设置默认值，并将其标题化：
+<h1>Hello, {{ name|default('陌生人')|title }}!</h1>
+
+在确保变量值安全的情况下，这通常意味着你已经对用户输入的内容进行了“消毒”处理。这时如果你想避免转义，将变量作为HTML解析，可以对变量使用safe过滤器：
+{{ sanitized_text|safe }}
+
+另一种将文本标记为安全的方法是在渲染前将变量转换为Markup对象：
+from flask import Markup
+
+@app.route('/hello')
+def hello():
+    text = Markup('<h1>Hello, Flask!</h1>')
+    return render_template('index.html', text=text)
+这时在模板中可以直接使用{{text}}。
+
+
+2）自定义过滤器
+使用app.template_filter（）装饰器可以注册自定义过滤器：
+from flask import Markup
+
+@app.template_filter()
+def musical(s):
+    return s + Markup(' &#9835;')
+和注册全局函数类似，你可以在app.template_filter（）中使用name关键字设置过滤器的名称，默认会使用函数名称。
+过滤器函数需要接收被处理的值作为输入，返回处理后的值。过滤器函数接收s作为被过滤的变量值，返回处理后的值。
+我们创建的musical过滤器会在被过滤的变量字符后面添加一个音符（single bar note）图标，因为音符通过HTML实体&#9835；表示，
+我们使用Markup类将它标记为安全字符。在使用时和其他过滤器用法相同：
+{{ name|musical }}
+
+附注　你可以直接使用app.add_template_filter（）方法注册自定义过滤器，传入函数对象和可选的自定义名称（name），
+比如app.add_template_filter（your_filter_function）。
+
+
+
+5，测试器
+测试器（Test）是一些用来测试变量或表达式，返回布尔值（True或False）的特殊函数。
+比如，number测试器用来判断一个变量或表达式是否是数字，我们使用is连接变量和测试器：
+{% if age is number %}
+　　{{ age * 365 }}
+{% else %}
+　　无效的数字。
+{% endif %}
+
+1）内置测试器
+Jinja2内置了许多测试器，常用的测试器及用法说明如下:
+测试器		说明
+callable(object)	判断对象是否可被调用
+defined(value)	判断变量是否已定义
+undefined(value)	判断变量是否未定义
+none(value)	判断变量是否为None
+number(value)	判断变量是否是数字
+string(value)	判断变量是否是字符串
+sequence(value)	判断变量是否是序列，比如字符串，列表，元组
+iterable(value)	判断变量是否可迭代
+mapping(value)	判断变量是否是匹配对象，比如字典
+sameas(value,other)	判断变量与other是否指向相同的内存地址
+
+在使用测试器时，is的左侧是测试器函数的第一个参数（value），其他参数可以添加括号传入，也可以在右侧使用空格连接，以sames为例：
+{% if foo is sameas(bar) %}...
+等同于：
+{% if foo is sameas bar %}...   推荐使用上面的方法，比较直观，看得懂
+
+2）自定义测试器
+
+和过滤器类似，我们可以使用Flask提供的app.template_test（）装饰器来注册一个自定义测试器。
+在示例程序中，我们创建了一个没有意义的baz测试器，仅用来验证被测值是否为baz，如下：
+@app.template_test()
+def baz(n):
+    if n == 'baz':
+        return True
+    return False
+
+测试器的名称默认为函数名称，你可以在app.template_test（）中使用name关键字指定自定义名称。测试器函数需要接收被测试的值作为输入，返回布尔值。
+
+3）添加自定义全局对象
+我们可以直接操作这三个字典来添加相应的函数或变量，这通过向对应的字典属性中添加一个键值对实现，
+要在模板里使用的变量名称作为键，对应的函数对象或变量作为值。
+和app.template_global（）装饰器不同，直接操作globals字典允许我们传入任意Python对象，而不仅仅是函数，类似于上下文处理函数的作用。
+下面的代码使用app.jinja_env.globals分别向模板中添加全局函数bar和全局变量foo：
+
+def bar():
+    return 'I am bar.'
+foo = 'I am foo.'
+
+app.jinja_env.globals['bar'] = bar
+app.jinja_env.globals['foo'] = foo
+
+批注：所以。。。app.context_processor可以注册全局函数，其中有变量的话就成了全局变量。
+app.template_global()只能注册全局函数。
+app.jinja_env.globals可以注册全局函数，也可以注册全局变量。
+
+
+添加自定义过滤器（过滤器的返回值会对传入的参数进行一些修改，改成我们所需要的类型）
+下面的代码使用app.jinja_env.filters向模板中添加自定义过滤器smiling：
+def smiling(s):
+    return s + ' :)'
+
+app.jinja_env.filters['smiling'] = smiling
+
+
+添加自定义测试器（测试器的返回值都是布尔类型的）
+下面的代码使用app.jinja_env.tests向模板中添加自定义测试器baz：
+def baz(n):
+    if n == 'baz':
+        return True
+    return False
+
+app.jinja_env.tests['baz'] = baz
+
+
+
+
+6，模板组织结构
+1）局部模板
+当多个独立模板中都会使用同一块HTML代码时，我们可以把这部分代码抽离出来，存储到局部模板中。这样一方面可以避免重复，另一方面也可以方便统一管理。
+比如，多个页面中都要在页面顶部显示一个提示条，这个横幅可以定义在局部模板_banner.html中。
+我们使用include标签来插入一个局部模板，这会把局部模板的全部内容插在使用include标签的位置。
+比如，在其他模板中，我们可以在任意位置使用下面的代码插入_banner.html的内容：
+
+{%include'_banner.html'%}
+
+局部模板注意事项：为了和普通模板区分开，局部模板的命名通常以一个下划线开始。
+
+
+7，宏
+宏（macro）是Jinja2提供的一个非常有用的特性，它类似Python中的函数。
+使用宏可以把一部分模板代码封装到宏里，使用传递的参数来构建内容，最后返回构建后的内容。在功能上，它和局部模板类似，都是为了方便代码块的重用。
+为了便于管理，我们可以把宏存储在单独的文件中，这个文件通常命名为macros.html或_macros.html。
+在创建宏时，我们使用macro和endmacro标签声明宏的开始和结束。在开始标签中定义宏的名称和接收的参数，下面是一个简单的示例：
+
+{% macro qux(amount=1) %}
+    {% if amount == 1 %}
+        I am qux.
+    {% elif amount > 1 %}
+        We are quxs.
+    {% endif %}
+{% endmacro %}
+
+使用时，需要像从Python模块中导入函数一样使用import语句导入它，然后作为函数调用，传入必要的参数，如下所示：
+
+{% from 'macros.html' import qux %}
+...
+{{ qux(amount=5) }}
+
+
+另外，在使用宏时我们需要注意上下文问题。在Jinja2中，出于性能的考虑，并且为了让这一切保持显式，
+默认情况下包含（include）一个局部模板会传递当前上下文到局部模板中，但导入（import）却不会。
+具体来说，当我们使用render_template（）函数渲染一个foo.html模板时，这个foo.html的模板上下文中包含下列对象：
+·Flask使用内置的模板上下文处理函数提供的g、session、config、request。
+·扩展使用内置的模板上下文处理函数提供的变量。
+·自定义模板上下文处理器传入的变量。
+·使用render_template（）函数传入的变量。
+·Jinja2和Flask内置及自定义全局对象。
+·Jinja2内置及自定义过滤器。
+·Jinja2内置及自定义测试器。
+
+使用include标签插入的局部模板（比如_banner.html）同样可以使用上述上下文中的变量和函数。
+而导入另一个并非被直接渲染的模板（比如macros.html）时，这个模板仅包含下列这些对象：
+·Jinja2和Flask内置的全局函数和自定义全局函数。
+·Jinja2内置及自定义过滤器。
+·Jinja2内置及自定义测试器。
+
+批注：就是说：import只会把指定的‘部分内容（比如某个具体函数）'导入到当前模板中，比较轻量。
+如果是include会把指定的模板，整个内容（包括上下文）都导入进来。
+
+因此，如果我们想在导入的宏中使用前一个列表中的2、3、4项，就需要在导入时显式地使用with context声明传入当前模板的上下文：
+{% from "macros.html" import foo with context %}
+
+
+8，模板继承
+Jinja2的模板继承允许你定义一个基模板，把网页上的导航栏、页脚等通用内容放在基模板中，而每一个继承基模板的子模板在被渲染时都会自动包含这些部分。
+使用这种方式可以避免在多个模板中编写重复的代码。
+
+1）编写基模板
+基模板存储了程序页面的固定部分，通常被命名为base.html或layout.html。
+示例程序中的基模板base.html中包含了一个基本的HTML结构，我们还添加了一个简单的导航条和页脚，如下所示：
+<!DOCTYPE html>
+<html>
+<head>
+    {% block head %}
+        <meta charset="utf-8">
+        <title>{% block title %}Template - HelloFlask{% endblock %}</title>
+　　　　{% block styles %}{% endblock %}
+    {% endblock %}
+</head>
+<body>
+<nav>
+    <ul><li><a href="{{ url_for('index') }}">Home</a></li></ul>
+</nav>
+<main>
+    {% block content %}{% endblock %}
+</main>
+<footer>
+    {% block footer %}
+        ...
+    {% endblock %}
+</footer>
+{% block scripts %}{% endblock %}
+</body>
+</html>
+当子模板继承基模板后，子模板会自动包含基模板的内容和结构。为了能够让子模板方便地覆盖或插入内容到基模板中，我们需要在基模板中定义块（block），
+在子模板中可以通过定义同名的块来执行继承操作。
+块的开始和结束分别使用block和endblock标签声明，而且块之间可以嵌套。
+在这个基模板中，我们创建了六个块：head、title、styles、content、footer和scripts，分别用来划分不同的代码。
+其中，head块表示<head>标签的内容，title表示<title>标签的内容，content块表示页面主体内容，footer表示页脚部分，styles块和scripts块，
+则分别用来包含CSS文件和JavaScript文件引用链接或页内的CSS和JavaScript代码。
+
+注意：这里的块名称可以随意指定，而且并不是必须的。你可以按照需要设置块，如果你只需要让子模板添加主体内容，那么仅定义一个content块就足够了
+
+为了避免块的混乱，块的结束标签可以指明块名，同时要确保前后名称一致。比如：
+{% block body %}
+...
+{% endblock body %}
+
+2）编写子模板
+因为基模板中定义了HTML的基本结构，而且包含了页脚等固定信息，在子模板中我们不再需要定义这些内容，只需要对特定的块进行修改。
+这时我们可以修改前面创建的电影清单模板watchlist.html和主页模板index.html，将这些子模板的通用部分合并到基模板中，
+并在子模板中定义块来组织内容，以便在渲染时将块中的内容插入到基模板的对应位置。以index.html为例，修改后的模板代码如下：
+{% extends 'base.html' %}   #base.html是基模板，这里的extends是当前字模板的第一个标签，表示引用基膜版的内容来生成这个子模版了
+{% from 'macros.html' import qux %}
+
+{% block content %}
+{% set name='baz' %}
+<h1>Template</h1>
+<ul>
+    <li><a href="{{ url_for('watchlist') }}">Watchlist</a></li>
+    <li>Filter: {{ foo|musical }}</li>
+    <li>Global: {{ bar() }}</li>
+    <li>Test: {% if name is baz %}I am baz.{% endif %}</li>
+    <li>Macro: {{ qux(amount=5) }}</li>
+</ul>
+{% endblock %}
+
+我们使用extends标签声明扩展基模板，它告诉模板引擎当前模板派生自base.html。
+注意　extends必须是子模板的第一个标签。（是第一个）
+
+
+我们在基模板中定义了四个块，在子模板中，我们可以对父模板中的块执行两种操作：
+（1）覆盖内容
+当在子模板里创建同名的块时，会使用子块的内容覆盖父块的内容。比如我们在子模板index.html中定义了title块，内容为Home，
+这会把块中的内容填充到基模板里的title块的位置，最终渲染为<title>Home</title>，content块的效果同理。
+
+（2）追加内容
+如果想要向基模板中的块追加内容，需要使用Jinja2提供的super（）函数进行声明，这会向父块添加内容。
+比如，下面的示例向基模板中的styles块追加了一行<style>样式定义：
+{% block styles %}
+{{ super() }}
+<style>
+    .foo {
+        color: red;
+    }
+</style>
+{% endblock %}
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
