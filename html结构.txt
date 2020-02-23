@@ -1,0 +1,14 @@
+https://www.w3.org/wiki/HTML_structural_elements     结构的网址
+
+https://dev.w3.org/html5/html-author/charref            查看所有可用的HTML实体，比如:&larr；会显示为左箭头，另外，我们还经常使用&copy；来显示版权标志
+
+
+在编写Web程序时，手动编写CSS比较麻烦，更常见的做法是使用CSS框架来为程序添加样式。CSS框架内置了大量可以直接使用的CSS样式类和JavaScript函数，
+使用它们可以非常快速地让程序页面变得美观和易用，同时我们也可以定义自己的CSS文件来进行补充和调整。以Bootstrap（http://getbootstrap.com/）为例，
+我们需要访问Bootstrap的下载页面（http://getbootstrap.com/docs/4.0/getting-started/download/）下载相应的资源文件，然后分类别放到static目录下。
+
+附注　Bootstrap是最流行的开源前端框架之一，它有浏览器支持广泛、响应式设计等特点。使用它可以快速搭建美观、现代的网页。
+Bootstrap的官方文档（http://getbootstrap.com/docs/）提供了很多简单易懂的示例代码。
+另外，Bootstrap所依赖的jQuery（https://jquery.com/）和Popper.js（https://popper.js.org/）需要单独下载，
+这三个JavaScript文件在引入时要按照jQuery→Popper.js→Bootstrap的顺序引入。
+
