@@ -10,9 +10,18 @@
 6，运行pipenv update flask可以升级，确保自己的flask是最新版本的
 7，https://www.jetbrains.com/pycharm/download/    pycharm下载地址
 8， 在根目录中，下载 pipenv install python-dotenv   用来管理环境变量，安装这个之后，在使用flask run或其他命令时，会使用它自动从 .flaskenv文件和 .env文件中加载环境变量。
-9，在根目录中，下载 pipenv install watchdog--dev ， 安装后werkzeug会自动使用它来检测文件变动，这个包旨在开发时才会用到，所以安装命令后面添加一个--dev
+9，在根目录中，下载 pipenv install watchdog --dev ， 安装后werkzeug会自动使用它来检测文件变动，这个包旨在开发时才会用到，所以安装命令后面添加一个--dev
 10，扩展Flask-WTF集成了WTForms，使用它可以在Flask中更方便地使用WTForms。Flask-WTF将表单数据解析、CSRF保护、文件上传等功能与Flask集成，
 另外还附加了reCAPTCHA支持。$pipenv install flask-wtf
+
+以上包的安装流程：
+1，pip install pipenv  （在用户目录下）cmd打开就是
+2，pipenv install         （在桌面的helloflask文件夹）就是在这个文件夹安装虚拟环境
+3，pipenv install flask   (接下去，包括这条都是在桌面的helloflask文件夹内安装，这个是安装虚拟环境的flask安装包）
+4，pipenv update flask  (升级虚拟环境的flask)
+5，pipenv install python-dotenv
+6，pipenv install watchdog --dev
+7，pipenv install flask-wtf
 
 
 
