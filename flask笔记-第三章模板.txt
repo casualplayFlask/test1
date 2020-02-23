@@ -488,13 +488,28 @@ def just_flash():
 在后面的其他程序中，我们也会频繁使用这种方式来传递数据。
 
 
+对于需要全局使用的数据，则可以在页面中使用嵌入式JavaScript定义变量，如果没法定义为JavaScript变量，那就考虑定义为函数，比如：
+<script type="text/javascript">
+    var foo = '{{ foo_variable }}';
+</script>
+
+CSS同理，有些时候你会需要将Jinja2变量值传入CSS文件，比如我们希望将用户设置的主题颜色设置到对应的CSS规则中，
+或是需要将static目录下某个图片的URL传入CSS来设置为背景图片，除了将这部分CSS定义直接写到HTML中外，我们可以将这些值定义为CSS变量，如下所示：
+<style>
+:root {
+    --theme-color: {{ theme_color }};
+    --background-url: {{ url_for('static', filename='background.jpg') }}
+}
+</style>
 
 
-
-
-
-
-
+在CSS文件中，使用var（）函数并传入变量名即可获取对应的变量值：
+#foo {
+    color: var(--theme-color); 
+}
+#bar {
+    background: var(--background-url); 
+}
 
 
 
