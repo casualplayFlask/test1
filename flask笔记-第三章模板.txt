@@ -430,16 +430,62 @@ Jinja2的模板继承允许你定义一个基模板，把网页上的导航栏�
 </style>
 {% endblock %}
 
+9，加载静态文件
+一个Web项目不仅需要HTML模板，还需要许多静态文件，比如CSS、JavaScript文件、图片以及音频等。
+在Flask程序中，默认我们需要将静态文件存储在与主脚本（包含程序实例的脚本）同级目录的static文件夹中。
+为了在HTML文件中引用静态文件，我们需要使用url_for（）函数获取静态文件的URL。
+Flask内置了用于获取静态文件的视图函数，端点值为static，它的默认URL规则为/static/<path：filename>，
+URL变量filename是相对于static文件夹根目录的文件路径。
+
+提示　如果你想使用其他文件夹来存储静态文件，可以在实例化Flask类时使用static_folder参数指定，
+静态文件的URL路径中的static也会自动跟随文件夹名称变化。在实例化Flask类时使用static_url_path参数则可以自定义静态文件的URL路径。
+
+在示例程序的static目录下保存了一个头像图片avatar.jpg，我们可以通过url_for（'static'，filename='avatar.jpg'）获取这个文件的URL，
+这个函数调用生成的URL为/static/avatar.jpg，在浏览器中输入http://localhost:5000/static/avatar.jpg即可访问这个图片。
+在模板watchlist2.html里，我们在用户名的左侧添加了这个图片，使用url_for（）函数生成图片src属性所需的图片URL，如下所示：
+
+<img src="{{ url_for('static', filename='avatar.jpg') }}" width="50">
+
+Flask中静态文件的默认路径为/static/filename，为了正确返回Favicon，我们可以显式地在HTML页面中声明Favicon的路径。
+首先可以在<head>部分添加一个<link>元素，然后将rel属性设置为icon，如下所示：
+
+<link rel="icon" type="image/x-icon" href="{{ url_for('static', filename='favicon.ico') }}">
+附注：大部分教程将rel属性设置为shortcut icon，事实上，shortcut是多余的，可以省略掉。
 
 
 
+10，消息闪现
+Flask提供了一个非常有用的flash（）函数，它可以用来“闪现”需要显示给用户的消息，比如当用户登录成功后显示“欢迎回来！”。
+在视图函数调用flash（）函数，传入消息内容即可“闪现”一条消息。当然，它并不是我们想象的，能够立刻在用户的浏览器弹出一条消息。
+实际上，使用功能flash（）函数发送的消息会存储在session中，我们需要在模板中使用全局函数get_flashed_messages（）获取消息并将其显示出来。
 
 
+可以在任意视图函数中调用flash（）函数发送消息。为了测试消息闪现，我们添加了一个just_flash视图，
+在函数中发送了一条消息，最后重定向到index视图，如下：
+from flask import Flask, render_template, flash
 
+app = Flask(__name__)
+app.secret_key = 'secret string'
 
+@app.route('/flash')
+def just_flash():
+    flash('I am flash, who is looking for me?')
+    return redirect(url_for('index'))
 
+11，JavaScript和CSS中的Jinja2
+1）行内/嵌入式JavaScript/CSS
+如果要在JavaScript和CSS文件中使用Jinja2代码，那么就在HTML中使用<style>和<script>标签定义这部分CSS和JavaScript代码。
+避免把大量JavaScript代码留在HTML中的办法就是尽量将要使用的Jinja2变量值在HTML模板中定义为JavaScript变量。
 
+2）定义为JavaScript/CSS变量
+对于想要在JavaScript中获取的数据，如果是元素特定的数据，比如某个文章条目对应的id值，可以通过HTML元素的data-*属性存储。
+你可以自定义横线后的名称，作为元素上的自定义数据变量，比如data-id，data-username等，比如：
 
+在JavaScript中，我们可以使用DOM元素的dataset属性获取data-*属性值，比如element.dataset.username，或是使用getAttribute（）方法，
+比如element.getAttribute（'data-username'）；使用jQuery时，可以直接对jQuery对象调用data方法获取，比如$element.data（'username'）。
+
+***在HTML中，“data-*”被称为自定义数据属性（custom data attribute），我们可以用它来存储自定义的数据供JavaScript获取。
+在后面的其他程序中，我们也会频繁使用这种方式来传递数据。
 
 
 
