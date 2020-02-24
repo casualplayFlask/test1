@@ -564,6 +564,10 @@ return redirect(url_for('show_images'))
 
 
 
+10，使用Flask-CKEditor集成富文本编辑器
+富文本编辑器即WYSIWYG（What You See Is What You Get，所见即所得）编辑器，类似于我们经常使用的文本编辑软件。
+它提供一系列按钮和下拉列表来为文本设置格式，编辑状态的文本样式即最终呈现出来的样式。在Web程序中，
+这种编辑器也称为HTML富文本编辑器，因为它使用HTML标签来为文本定义样式。
 
 
 

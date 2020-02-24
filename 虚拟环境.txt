@@ -21,8 +21,8 @@
 4，pipenv update flask  (升级虚拟环境的flask)
 5，pipenv install python-dotenv
 6，pipenv install watchdog --dev
-7，pipenv install flask-wtf
-
+7，pipenv install flask-wtf	 表单处理的
+8，pipenv install flask-ckeditor  富文本编辑器
 
 
 pipenv --rm  删除虚拟环境
