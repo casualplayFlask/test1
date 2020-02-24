@@ -220,6 +220,125 @@ def basic():
 如果验证出错，就在返回的响应中加入错误信息。用户修改后再次提交表单，直到通过验证。我们在Flask程序中使用WTForms实现的就是服务器端验证。
 
 2）WTForms验证机制
+WTForms验证表单字段的方式是在实例化表单类时传入表单数据，然后对表单实例调用validate（）方法。
+这会逐个对字段调用字段实例化时定义的验证器，返回表示验证结果的布尔值。
+如果验证失败，就把错误消息存储到表单实例的errors属性对应的字典中，验证的过程如下所示：
+>>> from wtforms import Form, StringField, PasswordField, BooleanField 
+>>> from wtforms.validators import DataRequired, Length                
+>>> class LoginForm(Form):                                             
+...     username = StringField('Username', validators=[DataRequired()])
+...     password = PasswordField('Password', validators=[DataRequired()
+, Length(8, 128)])
+>>> form = LoginForm(username='', password='123')                      
+>>> form.data  # 表单数据字典
+{'username': '', 'password': '123'}
+>>> form.validate()
+False
+>>> form.errors  # 错误消息字典
+{'username': [u'This field is required.'], 'password': [u'Field must be
+ at least 8 characters long.']}
+>>> form2 = LoginForm(username='greyli', password='12345678')            
+>>> form2.data
+{'username': 'greyli', 'password': '12345678'}
+>>> form2.validate()
+True
+>>> form2.errors
+{}
+
+因为我们的表单使用POST方法提交，如果单纯使用WTForms，我们在实例化表单类时需要首先把request.form传入表单类，而使用Flask-WTF时，
+表单类继承的FlaskForm基类默认会从request.form获取表单数据，所以不需要手动传入。
+
+***提示　使用POST方法提交的表单，其数据会被Flask解析为一个字典，可以通过请求对象的form属性获取（request.form）；
+使用GET方法提交的表单的数据同样会被解析为字典，不过要通过请求对象的args属性获取（request.args）。
+
+
+
+3）在视图函数中验证表单
+因为现在的basic视图同时接收两种类型的请求：GET请求和POST请求。所以我们要根据请求方法的不同执行不同的代码。
+具体来说：首先是实例化表单，如果是GET请求，那么就渲染模板；如果是POST请求，就调用validate（）方法验证表单数据。
+请求的HTTP方法可以通过request.method属性获取，我们可以使用下面的方式来组织视图函数：
+from flask import request
+...
+@app.route('/basic', methods=['GET', 'POST'])
+def basic():
+    form = LoginForm()  # GET + POST
+    if request.method == 'POST' and form.validate():  #注意:因为WTForms会自动对CSRF令牌字段进行验证，如果没有渲染该字段会导致验证出错，错误消息为“CSRF token is missing”。
+        ...  # 处理POST请求
+    return render_template('basic.html', form=form)  # 处理GET请求
+
+其中的if语句等价于：
+if 用户提交表单 and 数据通过验证:
+    获取表单数据并保存
+
+当请求方法是GET时，会跳过这个if语句，渲染basic.html模板；当请求的方法是POST时（说明用户提交了表单），则验证表单数据。
+这会逐个字段（包括CSRF令牌字段）调用附加的验证器进行验证。
+
+Flask-WTF提供的validate_on_submit（）方法合并了这两个操作，因此上面的代码可以简化为：
+@app.route('/basic', methods=['GET', 'POST'])
+def basic():
+    form = LoginForm()
+    if form.validate_on_submit():
+        ... 
+    return render_template('basic.html', form=form)
+
+☆附注　除了POST方法，如果请求的方法是PUT、PATCH和DELETE方法，form.validate_on_submit（）也会验证表单数据。
+
+如果form.validate_on_submit（）返回True，则表示用户提交了表单，且表单通过验证，那么我们就可以在这个if语句内获取表单数据，如下代码所示：
+from flask import Flask, render_template, redirect, url_for, flash
+...
+@app.route('/basic', methods=['GET', 'POST'])
+def basic():
+    form = LoginForm()
+    if form.validate_on_submit():
+        username = form.username.data
+        flash('Welcome home, %s!' % username)
+        return redirect(url_for('index'))
+    return render_template('basic.html', form=form)
+
+表单类的data属性是一个匹配所有字段与对应数据的字典，我们一般直接通过“form.字段属性名.data”的形式来获取对应字段的数据。
+例如，form.username.data返回username字段的值。
+在上述代码中，当表单验证成功后，我们获取了username字段的数据，然后用来发送一条flash消息，最后将程序重定向到index视图。
+***提示：表单的数据一般会存储到数据库中，这是我们下一章要学习的内容。这里仅仅将数据填充到flash（）函数里。
+
+在这个if语句内，如果不使用重定向的话，当if语句执行完毕后会继续执行最后的render_template（）函数渲染模板，最后像往常一样返回一个常规的200响应，
+但这会造成一个问题：
+在浏览器中，当单击F5刷新/重载时的默认行为是发送上一个请求。如果上一个请求是POST请求，那么就会弹出一个确认窗口，询问用户是否再次提交表单。
+为了避免出现这个容易让人产生困惑的提示，我们尽量不要让提交表单的POST请求作为最后一个请求。这就是为什么我们在处理表单后返回一个重定向响应，
+这会让浏览器重新发送一个新的GET请求到重定向的目标URL。
+最终，最后一个请求就变成了GET请求。这种用来防止重复提交表单的技术称为PRG（Post/Redirect/Get）模式，
+即通过对提交表单的POST请求返回重定向响应将最后一个请求转换为GET请求。
+
+
+4）在模板中渲染错误消息
+如果form.validate_on_submit（）返回False，那么说明验证没有通过。对于验证未通过的字段，
+WTForms会把错误消息添加到表单类的errors属性中，这是一个匹配作为表单字段的类属性到对应的错误消息列表的字典。
+我们一般会直接通过字段名来获取对应字段的错误消息列表，即“form.字段名.errors”。比如，form.name.errors返回name字段的错误消息列表。
+像第2章渲染flash（）消息一样，我们可以在模板里使用for循环迭代错误消息列表，如代码：
+<form method="post">
+    {{ form.csrf_token }}
+    {{ form.username.label }}<br>
+    {{ form.username }}<br>
+    {% for message in form.username.errors %}
+        <small class="error">{{ message }}</small><br>
+    {% endfor %}
+    {{ form.password.label }}<br>
+    {{ form.password }}<br>
+    {% for message in form.password.errors %}
+        <small class="error">{{ message }}</small><br>
+    {% endfor %}
+    {{ form.remember }}{{ form.remember.label }}<br>
+    {{ form.submit }}<br>
+</form>
+
+提示1:在使用DataRequired和InputRequired验证器时，WTForms会在字段输出的HTML代码中添加required属性，所以会弹出浏览器内置的错误提示。
+同时，WTForms也会在表单字段的flags属性添加required标志（比如form.username.flags.required），
+所以我们可以在模板中通过这个标志值来判断是否在字段文本中添加一个*号或文字标注，以表示必填项。
+
+提示2:InputRequired验证器和DataRequired很相似，但InputRequired仅验证用户是否有输入，而不管输入的值是否有效。
+例如，由空格组成的数据也会通过验证。当使用DataRequired时，如果用户输入的数据不符合字段要求，比如在IntegerField输入非数字时会视为未输入，而不是类型错误。
+
+完整的表单处理过程的流程图如图在文件夹中的图库中保存，可查看
+
 
 
 
