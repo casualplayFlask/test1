@@ -569,6 +569,172 @@ return redirect(url_for('show_images'))
 它提供一系列按钮和下拉列表来为文本设置格式，编辑状态的文本样式即最终呈现出来的样式。在Web程序中，
 这种编辑器也称为HTML富文本编辑器，因为它使用HTML标签来为文本定义样式。
 
+实例化Flask-CKEditor提供的CKEditor类，传入程序实例：
+from flask_ckeditor import CKEditor
+
+ckeditor = CKEditor(app)
+
+1）配置富文本编辑器
+Flask-CKEditor提供了许多配置变量来对编辑器进行设置，常用的配置及其说明在文件夹图中。
+在示例程序中，为了方便开发，使用了内置的本地资源：app.config['CKEDITOR_SERVE_LOCAL'] = True
+提示　CKEDITOR_SERVE_LOCAL和CKEDITOR_PKG_TYPE配置变量仅限于使用Flask-CKEditor提供的方法加载资源时有效，手动引入资源时可以忽略。
+
+Flask-CKEditor内置了对常用第三方CKEditor插件的支持，你可以轻松地为编辑器添加图片上传与插入、插入语法高亮代码片段、Markdown编辑模式等功能，
+具体可以访问Flask-CKEditor文档的插件集成部分（https://flask-ckeditor.readthedocs.io/en/latest/plugins.html）。
+要使用这些功能，需要在CKEditor包中安装对应的插件，Flask-CKEditor内置的资源已经包含了这些插件，
+你可以通过Flask-CKEditor提供的示例程序（https://github.com/greyli/flask-ckeditor/tree/master/examples）来了解这些功能的具体实现。
+
+
+2）渲染富文本编辑器
+富文本编辑器在HTML中通过文本区域字段表示，即<textarea></textarea>。
+Flask-CKEditor通过包装WTForms提供的TextAreaField字段类型实现了一个CKEditorField字段类，我们使用它来构建富文本编辑框字段。
+以下代码中的RichTextForm表单包含了一个标题字段和一个正文字段。
+from flask_wtf import FlaskForm
+from wtforms import StringField, SubmitField
+from wtforms.validators import DataRequired, Length
+from flask_ckeditor import CKEditorField  # 从flask_ckeditor包导入
+
+class RichTextForm(FlaskForm):
+    title = StringField('Title', validators=[DataRequired(), Length(1, 50)])
+    body = CKEditorField('Body', validators=[DataRequired()])
+    submit = SubmitField('Publish')
+
+文章正文字段（body）使用的CKEditorField字段类型从Flask-CKEditor导入。我们可以像其他字段一样定义标签、验证器和默认值。
+在使用上，这个字段和WTForms内置的其他字段完全相同。比如，在提交表单时，同样使用data属性获取数据。
+
+在模板中，渲染这个body字段的方式和其他字段也完全相同，在示例程序中，我们在模板ckeditor.html渲染了这个表单，如代码清单4-19所示。
+代码清单如下　form/templates/ckeditor.html：渲染包含CKEditor编辑器的表单
+{% extends 'base.html' %}
+{% from 'macros.html' import form_field %}
+
+{% block content %}
+<h1>Integrate CKEditor with Flask-CKEditor</h1>
+<form method="post">
+    {{ form.csrf_token }}
+    {{ form_field(form.title) }}
+    {{ form_field(form.body) }}
+    {{ form.submit }}
+</form>
+{% endblock %}
+
+{% block scripts %}
+{{ super() }}
+{{ ckeditor.load() }}
+{% endblock %}
+
+渲染CKEditor编辑器需要加载相应的JavaScript脚本。在开发时，为了方便开发，
+可以使用Flask-CKEditor在模板中提供的ckeditor.load（）方法加载资源，它默认从CDN加载资源，将CKEDITOR_SERVE_LOCAL设为True会使用扩展内置的本地资源，
+内置的本地资源包含了几个常用的插件和语言包。ckeditor.load（）方法支持通过pkg_type参数传入包类型，这会覆盖配置CKEDITOR_PKG_TYPE的值，
+额外的version参数可以设置从CDN加载的CKEditor版本。
+
+如果你使用配置变量设置了编辑器的高度、宽度和语言或是其他插件配置，需要使用ckeditor.config（）方法加载配置，
+传入对应表单字段的name属性值，即对应表单类属性名。这个方法需要在加载CKEditor资源后调用：
+{{ckeditor.config（name='body'）}}
+
+***提示:为了支持为不同页面上的编辑器字段或单个页面上的多个编辑器字段使用不同的配置，
+大多数配置键都可以通过相应的关键字在ckeditor.config（）方法中传入，比如language、height、width等，这些参数会覆盖对应的全局配置。
+另外，Flask-CKEditor也允许你传入自定义配置字符串
+
+
+11，单个表单多个提交按钮
+在某些情况下，我们可能需要为一个表单添加多个提交按钮。比如在创建文章的表单中添加发布新文章和保存草稿的按钮。
+当用户提交表单时，我们需要在视图函数中根据按下的按钮来做出不同的处理。
+
+以下这样的表单，其中save表示保存草稿按钮，publish表示发布按钮，正文字段使用TextAreaField字段。
+class NewPostForm(FlaskForm):
+    title = StringField('Title', validators=[DataRequired(), Length(1, 50)])
+    body = TextAreaField('Body', validators=[DataRequired()])
+    save = SubmitField('Save')  # 保存按钮
+    publish = SubmitField('Publish')  # 发布按钮
+
+当表单数据通过POST请求提交时，Flask会把表单数据解析到request.form字典。
+如果表单中有两个提交字段，那么只有被单击的提交字段才会出现在这个字典中。
+当我们对表单类实例或特定的字段属性调用data属性时，WTForms会对数据做进一步处理。
+对于提交字段的值，它会将其转换为布尔值：被单击的提交字段的值将是True，未被单击的值则是False。
+
+基于这个机制，我们可以通过提交按钮字段的值来判断当前被单击的按钮，如下：
+@app.route('/two-submits', methods=['GET', 'POST'])
+def two_submits():
+    form = NewPostForm()
+    if form.validate_on_submit():
+        if form.save.data:  # 保存按钮被单击
+            # save it...
+            flash('You click the "Save" button.')
+        elif form.publish.data:  # 发布按钮被单击
+            # publish it...
+            flash('You click the "Publish" button.')
+        return redirect(url_for('index'))
+    return render_template('2submit.html', form=form)
+
+提示:有些时候，你还想在表单添加非提交按钮。比如，添加一个返回主页的取消按钮。因为这类按钮和表单处理过程无关，最简单的方式是直接在HTML模板中手动添加。
+
+12，单个页面多个表单
+除了在单个表单上实现多个提交按钮，有时我们还需要在单个页面上创建多个表单。比如，在程序的主页上同时添加登录和注册表单。
+当在同一个页面上添加多个表单时，我们要解决的一个问题就是在视图函数中判断当前被提交的是哪个表单。
+
+1）单视图处理
+创建两个表单，并在模板中分别渲染并不是难事，但是当提交某个表单时，我们就会遇到问题。Flask-WTF根据请求方法判断表单是否提交，
+但并不判断是哪个表单被提交，所以我们需要手动判断。基于上一节介绍的内容，我们知道被单击的提交字段最终的data属性值是布尔值，即True或False。
+而解析后的表单数据使用input字段的name属性值作为键匹配字段数据，也就是说，如果两个表单的提交字段名称都是submit，
+那么我们也无法判断是哪个表单的提交字段被单击。
+解决问题的第一步就是为两个表单的提交字段设置不同的名称，示例程序中的这两个表单如下代码所示。
+class SigninForm(FlaskForm):
+    username = StringField('Username', validators=[DataRequired(), Length(1, 20)])
+    password = PasswordField('Password', validators=[DataRequired(), Length(8, 128)])
+    submit1 = SubmitField('Sign in')
+
+class RegisterForm(FlaskForm):
+    username = StringField('Username', validators=[DataRequired(), Length(1, 20)])
+    email = StringField('Email', validators=[DataRequired(), Email(), Length(1, 254)])
+    password = PasswordField('Password', validators=[DataRequired(), Length(8, 128)])
+    submit2 = SubmitField('Register')
+
+在视图函数中，我们分别实例化这两个表单，根据提交字段的值来区分被提交的表单，如下代码：
+@app.route('/multi-form', methods=['GET', 'POST'])
+def multi_form():
+    signin_form = SigninForm()
+    register_form = RegisterForm()
+
+    if signin_form.submit1.data and signin_form.validate():
+        username = signin_form.username.data
+        flash('%s, you just submit the Signin Form.' % username)
+        return redirect(url_for('index'))
+
+    if register_form.submit2.data and register_form.validate():
+        username = register_form.username.data
+        flash('%s, you just submit the Register Form.' % username)
+        return redirect(url_for('index'))
+
+    return render_template('2form.html', signin_form=signin_form, register_form=register_form)
+在视图函数中，我们为两个表单添加了各自的if判断，在这两个if语句的内部，我们分别执行各自的代码逻辑。
+以登录表单（SigninForm）的if判断为例，如果signin_form.submit1.data的值为True，那就说明用户提交了登录表单，
+这时我们手动调用signin_form.validate（）对这个表单进行验证。
+这两个表单类实例通过不同的变量名称传入模板，以便在模板中相应渲染对应的表单字段，如下所示：
+...
+<form method="post">
+    {{ signin_form.csrf_token }}
+    {{ form_field(signin_form.username) }}
+    {{ form_field(signin_form.password) }}
+    {{ signin_form.submit1 }}
+</form>
+<h3>Register Form</h3>
+<form method="post">
+    {{ register_form.csrf_token }}
+    {{ form_field(register_form.username) }}
+    {{ form_field(register_form.email) }}
+    {{ form_field(register_form.password) }}
+    {{ register_form.submit2 }}
+</form>
+...
+访问http://localhost:5000/multi-form打开示例页面，当提交某个表单后，你会在重定向后的页面的提示消息里看到提交表单的名称。
+
+2）多视图处理
+
+
+
+
+
+
 
 
 
