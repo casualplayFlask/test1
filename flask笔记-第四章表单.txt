@@ -341,6 +341,226 @@ WTForms会把错误消息添加到表单类的errors属性中，这是一个匹�
 
 
 
+5）使用宏渲染表单
+在模板中渲染表单时，我们有大量的工作要做：
+·调用字段属性，获取<input>定义。
+·调用对应的label属性，获取<label>定义。
+·渲染错误消息。
+
+为了避免为每一个字段重复这些代码，我们可以创建一个宏来渲染表单字段，如代码：
+{% macro form_field(field) %}
+    {{ field.label }}<br>
+    {{ field(**kwargs) }}<br>
+    {% if field.errors %}
+        {% for error in field.errors %}
+            <small class="error">{{ error }}</small><br>
+        {% endfor %}
+    {% endif %}
+{% endmacro %}
+
+这个form_field（）宏接收表单类实例的字段属性和附加的关键字参数作为输入，返回包含<label>标签、表单字段、错误消息列表的HTML表单字段代码。
+使用这个宏渲染表单的示例如下所示：
+{% from 'macros.html' import form_field %}
+...
+<form method="post">
+    {{ form.csrf_token }}
+    {{ form_field(form.username)}}<br>
+    {{ form_field(form.password) }}<br>
+    ...
+</form>
+
+在上面的代码中，我们调用form_field（）宏逐个渲染表单中的字段，只要把每一个类属性传入form_field（）宏，即可完成渲染。
+
+
+1）行内验证器
+除了使用WTForms提供的验证器来验证表单字段，我们还可以在表单类中定义方法来验证特定字段，如代码：
+from wtforms import IntegerField, SubmitField
+from wtforms.validators import ValidationError
+
+class FortyTwoForm(FlaskForm):
+    answer = IntegerField('The Number')
+    submit = SubmitField()
+
+    def validate_answer(form, field):
+        if field.data != 42:
+            raise ValidationError('Must be 42.')
+
+表单类中包含以“validate_字段属性名”形式命名的方法时，在验证字段数据时会同时调用这个方法来验证对应的字段，
+这也是为什么表单类的字段属性名不能以validate开头。验证方法接收两个位置参数，依次为form和field，前者为表单类实例，后者是字段对象，
+我们可以通过field.data获取字段数据，这两个参数将在验证表单时被调用传入。
+验证出错时抛出从wtforms.validators模块导入的ValidationError异常，传入错误消息作为参数。
+因为这种方法仅用来验证特定的表单类字段，所以又称为行内验证器（in-line validator）。
+
+2）全局验证器
+如果你想要创建一个可重用的通用验证器，可以通过定义一个函数实现。
+如果不需要传入参数定义验证器，那么一个和表单类中定义的验证方法完全相同的函数就足够了，如代码：
+from wtforms.validators import ValidationError
+def is_42(form, field):
+    if field.data != 42:
+        raise ValidationError('Must be 42')
+
+class FortyTwoForm(FlaskForm):
+    answer = IntegerField('The Number', validators=[is_42])
+    submit = SubmitField()
+
+当使用函数定义全局的验证器时，我们需要在定义字段时在validators列表里传入这个验证器。因为在validators列表中传入的验证器必须是可调用对象，
+所以这里传入了函数对象，而不是函数调用。
+这仅仅是一个简单的示例，在现实中，我们通常需要让验证器支持传入参数来对验证过程进行设置。
+至少，我们应该支持message参数来设置自定义错误消息。这时验证函数应该实现成工厂函数，即返回一个可调用对象的函数，如代码：
+from wtforms.validators import ValidationError
+
+def is_42(message=None):
+    if message is None:
+        message = 'Must be 42.'
+
+    def _is_42(form, field):
+        if field.data != 42:
+            raise ValidationError(message)
+
+    return _is_42
+
+class FortyTwoForm(FlaskForm):
+    answer = IntegerField('The Number', validators=[is_42()])
+    submit = SubmitField()
+
+在现在的is_42（）函数中，我们创建了另一个_is_42（）函数，这个函数会被作为可调用对象返回。
+is_42（）函数接收的message参数用来传入自定义错误消息，默认为None，如果没有设置就使用内置消息。
+在validators列表中，这时需要传入的是对工厂函数is_42（）的调用。
+
+8，文件上传
+在HTML中，渲染一个文件上传字段只需要将<input>标签的type属性设为file，即<input type="file">。
+这会在浏览器中渲染成一个文件上传字段，单击文件选择按钮会打开文件选择窗口，选择对应的文件后，被选择的文件名会显示在文件选择按钮旁边。
+在服务器端，可以和普通数据一样获取上传文件数据并保存。不过我们需要考虑安全问题，文件上传漏洞也是比较流行的攻击方式。
+除了常规的CSRF防范，我们还需要重点注意下面的问题：
+·验证文件类型。
+·验证文件大小。
+·过滤文件名。
+
+1）定义上传表单
+在Python表单类中创建文件上传字段时，我们使用扩展Flask-WTF提供的FileField类，它继承WTForms提供的上传字段FileField，添加了对Flask的集成。
+如下代码创建了一个包含文件上传字段的表单。
+from flask_wtf.file import FileField, FileRequired, FileAllowed
+class UploadForm(FlaskForm):
+    photo = FileField('Upload Image', validators=[FileRequired(), FileAllowed(['jpg', 'jpeg', 'png', 'gif'])])
+    submit = SubmitField()
+
+为了便于测试，我们创建一个用来上传图片的photo字段。和其他字段类似，我们也需要对文件上传字段进行验证。
+Flask-WTF在flask_wtf.file模块下提供了两个文件相关的验证器，用法说明如下：
+验证器					说明
+FileRequired(message=None)			验证是否包含文件对象
+FileAllowed(upload_set,message=None)		用来验证文件类型，upload_set参数用来传入包含允许的文件后缀名列表
+
+顺便说一下，Flask-WTF提供的FileAllowed是在服务器端验证上传文件，使用HTML5中的accept属性也可以在客户端实现简单的类型过滤。
+这个属性接收MIME类型字符串或文件格式后缀，多个值之间使用逗号分隔，比如：
+<input type="file" id="profile_pic" name="profile_pic"
+    accept=".jpg, .jpeg, .png, .gif">
+
+除了验证文件的类型，我们通常还需要对文件大小进行验证，你肯定不想让用户上传超大的文件来拖垮你的服务器。
+通过设置Flask内置的配置变量MAX_CONTENT_LENGTH，我们可以限制请求报文的最大长度，单位为字节（byte）。比如，下面将最大长度限制为3M：
+app.config['MAX_CONTENT_LENGTH']=3*1024*1024
+
+
+需要注意的是，当表单中包含文件上传字段时（即type属性为file的input标签），需要将表单的enctype属性设为"multipart/form-data"，
+这会告诉浏览器将上传数据发送到服务器，否则仅会把文件名作为表单数据提交。
+<form method="post" enctype="multipart/form-data">
+    {{ form.csrf_token }}
+    {{ form_field(form.photo) }}
+    {{ form.submit }}
+</form>
+
+
+3）处理上传文件
+和普通的表单数据不同，当包含上传文件字段的表单提交后，上传的文件需要在请求对象的files属性（request.files）中获取。
+我们在第2章介绍过，这个属性是Werkzeug提供的ImmutableMultiDict字典对象，存储字段的name键值和文件对象的映射，比如：
+ImmutableMultiDict（[（'photo'，<FileStorage：u'0f913b0ff95.JPG'（'image/jpeg'）>）]）
+
+上传的文件会被Flask解析为Werkzeug中的FileStorage对象（werkzeug.datastructures.FileStorage）。
+当手动处理时，我们需要使用文件上传字段的name属性值作为键获取对应的文件对象。比如：
+request.files.get（'photo'）
+
+使用Flask-WTF时，它会自动帮我们获取对应的文件对象，这里我们仍然使用表单类属性的data属性获取上传文件。处理上传表单提交请求的upload视图如下：
+import os
+
+app.config['UPLOAD_PATH'] = os.path.join(app.root_path, 'uploads')
+
+@app.route('/upload', methods=['GET', 'POST'])
+def upload():
+    form = UploadForm()
+    if form.validate_on_submit():
+        f = form.photo.data
+        filename = random_filename(f.filename)
+        f.save(os.path.join(app.config['UPLOAD_PATH'], filename))
+        flash('Upload success.')
+        session['filenames'] = [filename]
+        return redirect(url_for('show_images'))
+    return render_template('upload.html', form=form)
+
+当表单通过验证后，我们通过form.photo.data获取存储上传文件的FileStorage对象。接下来，我们需要处理文件名，通常有三种处理方式：
+（1）使用原文件名
+如果能够确定文件的来源安全，可以直接使用原文件名，通过FileStorage对象的filename属性获取：
+filename=f.filename
+
+（2）使用过滤后的文件名
+如果要支持用户上传文件，我们必须对文件名进行处理，因为攻击者可能会在文件名中加入恶意路径。
+比如，如果恶意用户在文件名中加入表示上级目录的..（比如../../../../home/username/.bashrc或../../../etc/passwd），
+那么当我们保存文件时，如果这里表示上级目录的..数量正确，就会导致服务器上的系统文件被覆盖或篡改，还有可能执行恶意脚本。
+我们可以使用Werkzeug提供的secure_filename（）函数对文件名进行过滤，传递文件名作为参数，它会过滤掉所有危险字符，返回“安全的文件名”，如下所示：
+>>> from werkzeug import secure_filename
+>>> secure_filename('avatar!@#//#\\%$^&.jpg')
+'avatar.jpg'
+>>> secure_filename('avatar头像.jpg')
+'avatar.jpg'
+
+（3）统一重命名
+secure_filename（）函数非常方便，它会过滤掉文件名中的非ASCII字符。但如果文件名完全由非ASCII字符组成，那么会得到一个空文件名：
+>>> secure_filename('头像.jpg')
+'jpg'
+
+为了避免出现这种情况，更好的做法是使用统一的处理方式对所有上传的文件重新命名。
+随机文件名有很多种方式可以生成，下面是一个使用Python内置的uuid模块生成随机文件名的random_filename（）函数：
+def random_filename(filename):
+    ext = os.path.splitext(filename)[1]
+    new_filename = uuid.uuid4().hex + ext
+    return new_filename
+
+这个函数接收原文件名作为参数，使用内置的uuid模块中的uuid4（）方法生成新的文件名，并使用hex属性获取十六进制字符串，最后返回包含后缀的新文件名。
+
+☆附注　UUID（Universally Unique Identifier，通用唯一识别码）是用来标识信息的128位数字，比如用作数据库表的主键。
+使用标准方法生成的UUID出现重复的可能性接近0。在UUID的标准中，UUID分为5个版本，每个版本使用不同的生成方法并且适用于不同的场景。
+我们使用的uuid4（）方法对应的是第4个版本：不接收参数而生成随机UUID。
+
+在upload视图中，我们调用这个函数来获取随机文件名，传入原文件名作为参数：filename=random_filename（f.filename）
+
+处理完文件名后，是时候将文件保存到文件系统中了。我们在form目录下创建了一个uploads文件夹，用于保存上传后的文件。
+指向这个文件夹的绝对路径存储在自定义配置变量UPLOAD_PATH中：
+app.config['UPLOAD_PATH']=os.path.join（app.root_path，'uploads'）
+
+这里的路径通过app.root_path属性构造，它存储了程序实例所在脚本的绝对路径，相当于os.path.abspath（os.path.dirname（__file__））。
+为了保存文件，你需要提前手动创建这个文件夹。
+
+对FileStorage对象调用save（）方法即可保存，传入包含目标文件夹绝对路径和文件名在内的完整保存路径：
+f.save（os.path.join（app.config['UPLOAD_PATH']，filename））
+
+文件保存后，我们希望能够显示上传后的图片。为了让上传后的文件能够通过URL获取，我们还需要创建一个视图函数来返回上传后的文件，如下所示：
+@app.route('/uploads/<path:filename>')
+def get_file(filename):
+    return send_from_directory(app.config['UPLOAD_PATH'], filename)
+这个视图的作用与Flask内置的static视图类似，通过传入的文件路径返回对应的静态文件。
+在这个get_file视图中，我们使用Flask提供的send_from_directory（）函数来获取文件，传入文件的路径和文件名作为参数。
+
+提示:在get_file视图的URL规则中，filename变量使用了path转换器以支持传入包含斜线的路径字符串。
+
+在upload视图里保存文件后，我们使用flash（）发送一个提示，将文件名保存到session中，最后重定向到show_images视图。
+show_images视图返回的uploaded.html模板将从session获取文件名，渲染出上传后的图片。
+代码部分截取：
+flash('Upload success.')
+session['filenames'] = [filename]
+return redirect(url_for('show_images'))
+
+提示　这里将filename作为列表传入session只是为了兼容下面的多文件上传示例，这两个视图使用同一个模板，使用session可以在模板中统一从session获取文件名列表。
+
+在uploaded.html模板里，我们将传入的文件名作为URL变量，通过上面的get_file视图获取文件URL，作为<img>标签的src属性值，如下所示：
+<img src="{{ url_for('get_file', filename=filename) }}">
 
 
 
